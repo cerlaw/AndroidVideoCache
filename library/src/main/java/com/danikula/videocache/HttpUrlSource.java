@@ -1,6 +1,7 @@
 package com.danikula.videocache;
 
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.danikula.videocache.headers.EmptyHeadersInjector;
 import com.danikula.videocache.headers.HeaderInjector;
@@ -29,8 +30,11 @@ import static java.net.HttpURLConnection.HTTP_SEE_OTHER;
 /**
  * {@link Source} that uses http resource as source for {@link ProxyCache}.
  *
+ * 网络下载部分
+ * 新增了OkHttp实现代替了HttpUrlConnection
  * @author Alexey Danilov (danikula@gmail.com).
  */
+@Deprecated
 public class HttpUrlSource implements Source {
 
     private static final Logger LOG = LoggerFactory.getLogger("HttpUrlSource");
@@ -80,6 +84,7 @@ public class HttpUrlSource implements Source {
             inputStream = new BufferedInputStream(connection.getInputStream(), DEFAULT_BUFFER_SIZE);
             long length = readSourceAvailableBytes(connection, offset, connection.getResponseCode());
             this.sourceInfo = new SourceInfo(sourceInfo.url, length, mime);
+            Log.d("HttpUrlSource", "Source info fetched: " + sourceInfo);
             this.sourceInfoStorage.put(sourceInfo.url, sourceInfo);
         } catch (IOException e) {
             throw new ProxyCacheException("Error opening connection for " + sourceInfo.url + " with offset " + offset, e);
@@ -138,10 +143,11 @@ public class HttpUrlSource implements Source {
             urlConnection = openConnection(0, 10000);
             long length = getContentLength(urlConnection);
             String mime = urlConnection.getContentType();
+            Log.d("HttpUrlSource", "mime: " + mime);
             inputStream = urlConnection.getInputStream();
             this.sourceInfo = new SourceInfo(sourceInfo.url, length, mime);
             this.sourceInfoStorage.put(sourceInfo.url, sourceInfo);
-            LOG.debug("Source info fetched: " + sourceInfo);
+            Log.d("HttpUrlSource", "Source info fetched: " + sourceInfo);
         } catch (IOException e) {
             LOG.error("Error fetching info from " + sourceInfo.url, e);
         } finally {

@@ -17,6 +17,7 @@ import static com.danikula.videocache.Preconditions.checkNotNull;
 
 /**
  * Client for {@link HttpProxyCacheServer}
+ * 具体Url视频的客户端，视频的下载，缓存以及最后将数据交给播放器，都是在这里处理
  *
  * @author Alexey Danilov (danikula@gmail.com).
  */
@@ -36,9 +37,12 @@ final class HttpProxyCacheServerClients {
     }
 
     public void processRequest(GetRequest request, Socket socket) throws ProxyCacheException, IOException {
+        //初始化proxyCache，里面包含了网络请求以及文件缓存,如果没有则重新newHttpProxyCache，否则复用即可
         startProcessRequest();
         try {
+            //原子操作用于记录当前有多少个socketClient
             clientsCount.incrementAndGet();
+            //缓存代理开始处理
             proxyCache.processRequest(request, socket);
         } finally {
             finishProcessRequest();
@@ -79,7 +83,9 @@ final class HttpProxyCacheServerClients {
     }
 
     private HttpProxyCache newHttpProxyCache() throws ProxyCacheException {
-        HttpUrlSource source = new HttpUrlSource(url, config.sourceInfoStorage, config.headerInjector);
+        //HttpUrlSource 持有url，开启HttpUrlConnection来获取inputStream
+        OkHttpUrlSource source = new OkHttpUrlSource(url, config.sourceInfoStorage, config.headerInjector);
+        //缓存总以.download存在，缓存完后更名,并会进行一次touch
         FileCache cache = new FileCache(config.generateCacheFile(url), config.diskUsage);
         HttpProxyCache httpProxyCache = new HttpProxyCache(source, cache);
         httpProxyCache.registerCacheListener(uiCacheListener);

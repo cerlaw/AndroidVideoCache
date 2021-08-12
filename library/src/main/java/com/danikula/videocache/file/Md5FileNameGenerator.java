@@ -16,7 +16,7 @@ public class Md5FileNameGenerator implements FileNameGenerator {
     @Override
     public String generate(String url) {
         String extension = getExtension(url);
-        String name = ProxyCacheUtils.computeMD5(url);
+        String name = ProxyCacheUtils.computeMD5(getName(url));
         return TextUtils.isEmpty(extension) ? name : name + "." + extension;
     }
 
@@ -25,5 +25,10 @@ public class Md5FileNameGenerator implements FileNameGenerator {
         int slashIndex = url.lastIndexOf('/');
         return dotIndex != -1 && dotIndex > slashIndex && dotIndex + 2 + MAX_EXTENSION_LENGTH > url.length() ?
                 url.substring(dotIndex + 1, url.length()) : "";
+    }
+
+    private String getName(String url) {
+        int questionIndex = url.lastIndexOf('?');
+        return questionIndex > 0 ? url.substring(0, questionIndex) : url;
     }
 }

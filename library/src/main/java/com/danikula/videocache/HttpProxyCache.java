@@ -21,11 +21,11 @@ class HttpProxyCache extends ProxyCache {
 
     private static final float NO_CACHE_BARRIER = .2f;
 
-    private final HttpUrlSource source;
+    private final OkHttpUrlSource source;
     private final FileCache cache;
     private CacheListener listener;
 
-    public HttpProxyCache(HttpUrlSource source, FileCache cache) {
+    public HttpProxyCache(OkHttpUrlSource source, FileCache cache) {
         super(source, cache);
         this.cache = cache;
         this.source = source;
@@ -36,11 +36,14 @@ class HttpProxyCache extends ProxyCache {
     }
 
     public void processRequest(GetRequest request, Socket socket) throws IOException, ProxyCacheException {
+        //向播放器返回Head信息（会以流的方式，先缓存到本地再给到播放器）
         OutputStream out = new BufferedOutputStream(socket.getOutputStream());
         String responseHeaders = newResponseHeaders(request);
         out.write(responseHeaders.getBytes("UTF-8"));
 
         long offset = request.rangeOffset;
+        //判断是否需要缓存，TODO 这里的可以进行优化，否则一旦seek后就可能不会在缓存了
+        //要处理seek后继续缓存就要考虑文件空洞的以及merge的事情
         if (isUseCache(request)) {
             responseWithCache(out, offset);
         } else {
@@ -48,9 +51,19 @@ class HttpProxyCache extends ProxyCache {
         }
     }
 
+    /**
+     * 判断是否使用缓存
+     * request.rangeOffset <= cacheAvailable + sourceLength * NO_CACHE_BARRIER
+     * 当seek超过视频总长的20%就会跳过缓存，如果seek在20%总长以内，则会把seek部分的全部下载完全后再把对应的部分交给播放器
+     * @param request
+     * @return
+     * @throws ProxyCacheException
+     */
     private boolean isUseCache(GetRequest request) throws ProxyCacheException {
+        //原始长度
         long sourceLength = source.length();
         boolean sourceLengthKnown = sourceLength > 0;
+        //已经缓存的长度
         long cacheAvailable = cache.available();
         // do not use cache for partial requests which too far from available cache. It seems user seek video.
         return !sourceLengthKnown || !request.partial || request.rangeOffset <= cacheAvailable + sourceLength * NO_CACHE_BARRIER;
@@ -84,11 +97,12 @@ class HttpProxyCache extends ProxyCache {
     }
 
     private void responseWithoutCache(OutputStream out, long offset) throws ProxyCacheException, IOException {
-        HttpUrlSource newSourceNoCache = new HttpUrlSource(this.source);
+        OkHttpUrlSource newSourceNoCache = new OkHttpUrlSource(this.source);
         try {
             newSourceNoCache.open((int) offset);
             byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
             int readBytes;
+            //这里的read方法，每次读取8192个字节，直到读完为止
             while ((readBytes = newSourceNoCache.read(buffer)) != -1) {
                 out.write(buffer, 0, readBytes);
                 offset += readBytes;

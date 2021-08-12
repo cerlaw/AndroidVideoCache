@@ -2,6 +2,7 @@ package com.danikula.videocache;
 
 import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 
 import com.danikula.videocache.file.DiskUsage;
 import com.danikula.videocache.file.FileNameGenerator;
@@ -54,6 +55,7 @@ import static com.danikula.videocache.Preconditions.checkNotNull;
 public class HttpProxyCacheServer {
 
     private static final Logger LOG = LoggerFactory.getLogger("HttpProxyCacheServer");
+    private static final String TAG = "HttpProxyCacheServer";
     private static final String PROXY_HOST = "127.0.0.1";
 
     private final Object clientsLock = new Object();
@@ -72,13 +74,19 @@ public class HttpProxyCacheServer {
     private HttpProxyCacheServer(Config config) {
         this.config = checkNotNull(config);
         try {
+            //根据host生成本地代理服务器的地址
             InetAddress inetAddress = InetAddress.getByName(PROXY_HOST);
+            //创建ServerSocket，最大可于8个client进行连接
             this.serverSocket = new ServerSocket(0, 8, inetAddress);
+            //由系统自动分配一个端口
             this.port = serverSocket.getLocalPort();
             IgnoreHostProxySelector.install(PROXY_HOST, port);
+            //等待waitConnectionThread线程启动
             CountDownLatch startSignal = new CountDownLatch(1);
+            //开启一个线程接收socket连接
             this.waitConnectionThread = new Thread(new WaitRequestsRunnable(startSignal));
             this.waitConnectionThread.start();
+            //阻塞当前线程，直到startSignal.countDown();
             startSignal.await(); // freeze thread, wait for server starts
             this.pinger = new Pinger(PROXY_HOST, port);
             LOG.info("Proxy cache server started. Is it alive? " + isAlive());
@@ -214,9 +222,15 @@ public class HttpProxyCacheServer {
 
     private void waitForRequest() {
         try {
+            //如果线程没有interrupt，不断的轮询，用于检测是否有新的socket连接
             while (!Thread.currentThread().isInterrupted()) {
+                //阻塞的方法 用于socket连接
+                //socketServer通过监听本地host:port，如果有对应的请求触发就进行一个socket连接
                 Socket socket = serverSocket.accept();
-                LOG.debug("Accept new socket " + socket);
+                Log.d(TAG, "Accept new socket " + socket);
+                //线程池，同时最大可以有8个socket连接
+                // 每个socket独占一个线程，最大可以有8个并发连接
+                // submit一个runnable进行处理socket
                 socketProcessor.submit(new SocketProcessorRunnable(socket));
             }
         } catch (IOException e) {
@@ -226,12 +240,15 @@ public class HttpProxyCacheServer {
 
     private void processSocket(Socket socket) {
         try {
+            //GetRequest主要是根据Socket中InputStream来构建我们的请求。
             GetRequest request = GetRequest.read(socket.getInputStream());
             LOG.debug("Request to cache proxy:" + request);
             String url = ProxyCacheUtils.decode(request.uri);
+            //url是"ping" 返回200，可以ping通
             if (pinger.isPingRequest(url)) {
                 pinger.responseToPing(socket);
             } else {
+                //获取 HttpProxyCacheServerClients ，并进行request处理
                 HttpProxyCacheServerClients clients = getClients(url);
                 clients.processRequest(request, socket);
             }
@@ -242,6 +259,7 @@ public class HttpProxyCacheServer {
         } catch (ProxyCacheException | IOException e) {
             onError(new ProxyCacheException("Error processing request", e));
         } finally {
+            //socket处理完毕之后，在finally中，关闭socket连接释放资源
             releaseSocket(socket);
             LOG.debug("Opened connections: " + getClientsCount());
         }
@@ -323,6 +341,7 @@ public class HttpProxyCacheServer {
         @Override
         public void run() {
             startSignal.countDown();
+            //开启一个线程，在线程中轮训
             waitForRequest();
         }
     }
@@ -337,6 +356,7 @@ public class HttpProxyCacheServer {
 
         @Override
         public void run() {
+            //处理这个socket连接
             processSocket(socket);
         }
     }
@@ -346,7 +366,7 @@ public class HttpProxyCacheServer {
      */
     public static final class Builder {
 
-        private static final long DEFAULT_MAX_SIZE = 512 * 1024 * 1024;
+        private static final long DEFAULT_MAX_SIZE = 64 * 1024 * 1024;
 
         private File cacheRoot;
         private FileNameGenerator fileNameGenerator;
@@ -355,10 +375,15 @@ public class HttpProxyCacheServer {
         private HeaderInjector headerInjector;
 
         public Builder(Context context) {
+            //数据库，存储原始视频url、mine信息、视频length
             this.sourceInfoStorage = SourceInfoStorageFactory.newSourceInfoStorage(context);
+            //缓存文件的存储路径
             this.cacheRoot = StorageUtils.getIndividualCacheDirectory(context);
+            //LRU缓存设置，设置最大缓存数量和总大小
             this.diskUsage = new TotalSizeLruDiskUsage(DEFAULT_MAX_SIZE);
+            //文件缓存名
             this.fileNameGenerator = new Md5FileNameGenerator();
+            //在请求中增加head信息
             this.headerInjector = new EmptyHeadersInjector();
         }
 
@@ -452,6 +477,11 @@ public class HttpProxyCacheServer {
         }
 
         private Config buildConfig() {
+            //cacheRoot: 设置缓存路径
+            //fileNameGenerator: 设置文件名，一般用url的md5或者唯一表示的业务id/hash
+            //diskUsage: 缓存的lru策略，有个touch方法，用于更新文件的修改时间（这个的实现也很有意思）。
+            //           支持设置缓存总大小以及缓存总个数的阀值。也可以自行扩展比如设置缓存的有效期
+            //sourceInfoStorage : 缓存信息的存储，根据唯一表示存储/查询对应的缓存路径等信息
             return new Config(cacheRoot, fileNameGenerator, diskUsage, sourceInfoStorage, headerInjector);
         }
 

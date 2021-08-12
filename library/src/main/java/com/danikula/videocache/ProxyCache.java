@@ -36,14 +36,24 @@ class ProxyCache {
         this.readSourceErrorsCount = new AtomicInteger();
     }
 
+    /**
+     * 这个是边缓存边播放的关键，先往文件中写入数据，直到写完（整个文件写完或者8192个写完）或者中断。
+     * buffer：一次读取的buffer
+     * offset：当前的已有缓存的偏移
+     * lenght: 一次读取buffer的大小
+     */
     public int read(byte[] buffer, long offset, int length) throws ProxyCacheException {
         ProxyCacheUtils.assertBuffer(buffer, offset, length);
 
+        //如果没有缓存完，并且缓存的大小小于需要缓存的大小(一次8192个字节)，并且sourceReaderThread线程没有停止
         while (!cache.isCompleted() && cache.available() < (offset + length) && !stopped) {
+            //异步的读取数据
             readSourceAsync();
+            //等待，最大时长1s秒钟,每过1s中检查是否有错误发生
             waitForSourceData();
             checkReadSourceErrorsCount();
         }
+        //从缓存中读取最大的8192个字节数据给到播放器
         int read = cache.read(buffer, offset, length);
         if (cache.isCompleted() && percentsAvailable != 100) {
             percentsAvailable = 100;
@@ -75,7 +85,12 @@ class ProxyCache {
         }
     }
 
+    /**
+     * 判断缓存中是否存在，若不存在则去下载
+     * @throws ProxyCacheException
+     */
     private synchronized void readSourceAsync() throws ProxyCacheException {
+        //如果已经还没有停止，并且 还没有缓存完 并且 没有在读取中 则开启新的数据读取线程 线程
         boolean readingInProgress = sourceReaderThread != null && sourceReaderThread.getState() != Thread.State.TERMINATED;
         if (!stopped && !cache.isCompleted() && !readingInProgress) {
             sourceReaderThread = new Thread(new SourceReaderRunnable(), "Source reader for " + source);
@@ -119,16 +134,21 @@ class ProxyCache {
         long sourceAvailable = -1;
         long offset = 0;
         try {
+            //已经缓存的大小
             offset = cache.available();
+            //开启 HttpUrlConnection，获取一个inputStream
             source.open(offset);
+            //文件的大小
             sourceAvailable = source.length();
             byte[] buffer = new byte[ProxyCacheUtils.DEFAULT_BUFFER_SIZE];
             int readBytes;
+            //HttpUrlSource.read,不断的读取数据从inputStream
             while ((readBytes = source.read(buffer)) != -1) {
                 synchronized (stopLock) {
                     if (isStopped()) {
                         return;
                     }
+                    //往缓存文件中写入数据,一次写入8192字节
                     cache.append(buffer, readBytes);
                 }
                 offset += readBytes;
@@ -137,6 +157,7 @@ class ProxyCache {
             tryComplete();
             onSourceRead();
         } catch (Throwable e) {
+            //如果读取过程中发生了错误，则进行原子加操作，每过1s秒会检查该标记位
             readSourceErrorsCount.incrementAndGet();
             onError(e);
         } finally {

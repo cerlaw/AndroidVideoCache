@@ -10,6 +10,8 @@ import java.io.RandomAccessFile;
 /**
  * {@link Cache} that uses file for storing data.
  *
+ * 文件缓存部分
+ *
  * @author Alexey Danilov (danikula@gmail.com).
  */
 public class FileCache implements Cache {
