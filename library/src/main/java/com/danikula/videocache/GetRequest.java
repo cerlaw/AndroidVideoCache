@@ -1,10 +1,8 @@
 package com.danikula.videocache;
 
 import android.text.TextUtils;
-import android.util.Log;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.danikula.videocache.log.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -25,7 +23,7 @@ class GetRequest {
 
     private static final Pattern RANGE_HEADER_PATTERN = Pattern.compile("[R,r]ange:[ ]?bytes=(\\d*)-");
     private static final Pattern URL_PATTERN = Pattern.compile("GET /(.*) HTTP");
-    private static final Logger LOG = LoggerFactory.getLogger("GetRequest");
+    private static final LoggerFactory.Logger LOG = LoggerFactory.getLogger("GetRequest");
 
     public final String uri;
     public final long rangeOffset;
@@ -38,6 +36,8 @@ class GetRequest {
         this.partial = offset >= 0;
         this.uri = findUri(request);
     }
+
+
 
     public static GetRequest read(InputStream inputStream) throws IOException {
         //从inputStream中读出来的内容如下：

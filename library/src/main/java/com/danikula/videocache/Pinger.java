@@ -1,7 +1,6 @@
 package com.danikula.videocache;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.danikula.videocache.log.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -32,7 +31,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 class Pinger {
 
-    private static final Logger LOG = LoggerFactory.getLogger("Pinger");
+    private static final LoggerFactory.Logger LOG = LoggerFactory.getLogger("Pinger");
     private static final String PING_REQUEST = "ping";
     private static final String PING_RESPONSE = "ping ok";
 

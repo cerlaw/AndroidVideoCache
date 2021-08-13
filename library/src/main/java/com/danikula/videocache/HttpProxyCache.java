@@ -3,6 +3,7 @@ package com.danikula.videocache;
 import android.text.TextUtils;
 
 import com.danikula.videocache.file.FileCache;
+import com.danikula.videocache.log.LoggerFactory;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -19,6 +20,7 @@ import static com.danikula.videocache.ProxyCacheUtils.DEFAULT_BUFFER_SIZE;
  */
 class HttpProxyCache extends ProxyCache {
 
+    private static final LoggerFactory.Logger LOG = LoggerFactory.getLogger("HttpProxyCache");
     private static final float NO_CACHE_BARRIER = .2f;
 
     private final OkHttpUrlSource source;
@@ -52,6 +54,16 @@ class HttpProxyCache extends ProxyCache {
     }
 
     /**
+     * 用于提前预加载
+     */
+    public void processRequest(GetRequest request) throws ProxyCacheException, IOException {
+        long offset = request.rangeOffset;
+        if (isUseCache(request)) {
+            responseWithCache(null, offset);
+        }
+    }
+
+    /**
      * 判断是否使用缓存
      * request.rangeOffset <= cacheAvailable + sourceLength * NO_CACHE_BARRIER
      * 当seek超过视频总长的20%就会跳过缓存，如果seek在20%总长以内，则会把seek部分的全部下载完全后再把对应的部分交给播放器
@@ -60,6 +72,12 @@ class HttpProxyCache extends ProxyCache {
      * @throws ProxyCacheException
      */
     private boolean isUseCache(GetRequest request) throws ProxyCacheException {
+        String mime = source.getMime();
+        // TODO: 2021/8/13 暂时只支持MP4的缓存
+        if (!MIME.MPEG_4.getContentType().equals(mime)) {
+            LOG.debug("not support cache mime: " + mime);
+            return false;
+        }
         //原始长度
         long sourceLength = source.length();
         boolean sourceLengthKnown = sourceLength > 0;
@@ -90,10 +108,14 @@ class HttpProxyCache extends ProxyCache {
         byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
         int readBytes;
         while ((readBytes = read(buffer, offset, buffer.length)) != -1) {
-            out.write(buffer, 0, readBytes);
+            if (out != null) {
+                out.write(buffer, 0, readBytes);
+            }
             offset += readBytes;
         }
-        out.flush();
+        if (out != null) {
+            out.flush();
+        }
     }
 
     private void responseWithoutCache(OutputStream out, long offset) throws ProxyCacheException, IOException {

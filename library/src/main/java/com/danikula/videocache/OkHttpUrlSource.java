@@ -5,6 +5,7 @@ import android.util.Log;
 
 import com.danikula.videocache.headers.EmptyHeadersInjector;
 import com.danikula.videocache.headers.HeaderInjector;
+import com.danikula.videocache.log.LoggerFactory;
 import com.danikula.videocache.sourcestorage.SourceInfoStorage;
 import com.danikula.videocache.sourcestorage.SourceInfoStorageFactory;
 
@@ -28,7 +29,7 @@ import static java.net.HttpURLConnection.HTTP_PARTIAL;
  */
 public class OkHttpUrlSource implements Source {
 
-    private static final String TAG = "OkHttpUrlSource";
+    private static final LoggerFactory.Logger LOG = LoggerFactory.getLogger("OkHttpUrlSource");
     private final SourceInfoStorage sourceInfoStorage;
     private final HeaderInjector headerInjector;
     private final OkHttpClient client = OkHttpClientInstance.getInstance();
@@ -61,7 +62,7 @@ public class OkHttpUrlSource implements Source {
 
     @Override
     public void open(long offset) throws ProxyCacheException {
-        Log.d(TAG, "open url: " + sourceInfo.url);
+        LOG.debug( "open url: " + sourceInfo.url);
         Request request = new Request.Builder().url(sourceInfo.url).build();
         try {
             Response response = client.newCall(request).execute();
@@ -112,7 +113,7 @@ public class OkHttpUrlSource implements Source {
     }
 
     private void fetchContentInfo() throws ProxyCacheException {
-        Log.d(TAG, "Read content info from " + sourceInfo.url);
+        LOG.debug("Read content info from " + sourceInfo.url);
         Request request = new Request.Builder().url(sourceInfo.url).build();
         InputStream is = null;
         try {
@@ -122,9 +123,9 @@ public class OkHttpUrlSource implements Source {
             String mime = response.body().contentType().toString();
             sourceInfo = new SourceInfo(sourceInfo.url, length, mime);
             sourceInfoStorage.put(sourceInfo.url, sourceInfo);
-            Log.d(TAG, "Source info fetched: " + sourceInfo);
+            LOG.debug("Source info fetched: " + sourceInfo);
         } catch (IOException | NullPointerException e) {
-            Log.e(TAG, "Error fetching info from " + sourceInfo.url + e.getMessage());
+            LOG.debug( "Error fetching info from " + sourceInfo.url + e.getMessage());
         } finally {
             ProxyCacheUtils.close(is);
         }

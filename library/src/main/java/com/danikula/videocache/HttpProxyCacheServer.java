@@ -11,11 +11,9 @@ import com.danikula.videocache.file.TotalCountLruDiskUsage;
 import com.danikula.videocache.file.TotalSizeLruDiskUsage;
 import com.danikula.videocache.headers.EmptyHeadersInjector;
 import com.danikula.videocache.headers.HeaderInjector;
+import com.danikula.videocache.log.LoggerFactory;
 import com.danikula.videocache.sourcestorage.SourceInfoStorage;
 import com.danikula.videocache.sourcestorage.SourceInfoStorageFactory;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,8 +52,7 @@ import static com.danikula.videocache.Preconditions.checkNotNull;
  */
 public class HttpProxyCacheServer {
 
-    private static final Logger LOG = LoggerFactory.getLogger("HttpProxyCacheServer");
-    private static final String TAG = "HttpProxyCacheServer";
+    private static final LoggerFactory.Logger LOG = LoggerFactory.getLogger("HttpProxyCacheServer");
     private static final String PROXY_HOST = "127.0.0.1";
 
     private final Object clientsLock = new Object();
@@ -227,7 +224,7 @@ public class HttpProxyCacheServer {
                 //阻塞的方法 用于socket连接
                 //socketServer通过监听本地host:port，如果有对应的请求触发就进行一个socket连接
                 Socket socket = serverSocket.accept();
-                Log.d(TAG, "Accept new socket " + socket);
+                LOG.debug("Accept new socket " + socket);
                 //线程池，同时最大可以有8个socket连接
                 // 每个socket独占一个线程，最大可以有8个并发连接
                 // submit一个runnable进行处理socket
@@ -312,7 +309,7 @@ public class HttpProxyCacheServer {
                 socket.shutdownOutput();
             }
         } catch (IOException e) {
-            LOG.warn("Failed to close socket on proxy side: {}. It seems client have already closed connection.", e.getMessage());
+            LOG.warn("Failed to close socket on proxy side: {}. It seems client have already closed connection.", e);
         }
     }
 

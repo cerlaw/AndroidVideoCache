@@ -5,11 +5,9 @@ import android.util.Log;
 
 import com.danikula.videocache.headers.EmptyHeadersInjector;
 import com.danikula.videocache.headers.HeaderInjector;
+import com.danikula.videocache.log.LoggerFactory;
 import com.danikula.videocache.sourcestorage.SourceInfoStorage;
 import com.danikula.videocache.sourcestorage.SourceInfoStorageFactory;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -37,7 +35,7 @@ import static java.net.HttpURLConnection.HTTP_SEE_OTHER;
 @Deprecated
 public class HttpUrlSource implements Source {
 
-    private static final Logger LOG = LoggerFactory.getLogger("HttpUrlSource");
+    private static final LoggerFactory.Logger LOG = LoggerFactory.getLogger("HttpUrlSource");
 
     private static final int MAX_REDIRECTS = 5;
     private final SourceInfoStorage sourceInfoStorage;

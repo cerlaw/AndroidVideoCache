@@ -2,6 +2,8 @@ package com.danikula.videocache;
 
 import android.util.Log;
 
+import com.danikula.videocache.log.LoggerFactory;
+
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
@@ -17,7 +19,7 @@ import okhttp3.Response;
  */
 public class OkHttpClientInstance {
 
-    private static final String TAG = "OkHttpClientInstance";
+    private static final LoggerFactory.Logger LOG = LoggerFactory.getLogger("OkHttpClientInstance");
 
     private OkHttpClientInstance() {}
 
@@ -46,7 +48,7 @@ public class OkHttpClientInstance {
                     && this.retryNum < this.maxRetry;
                 response = chain.proceed(request)) {
                 ++this.retryNum;
-                Log.d(TAG, "begin retry, num: " + retryNum);
+                LOG.debug("begin retry, num: " + retryNum);
             }
 
             return response;
