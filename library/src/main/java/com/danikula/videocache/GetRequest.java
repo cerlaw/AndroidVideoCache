@@ -37,7 +37,16 @@ class GetRequest {
         this.uri = findUri(request);
     }
 
+    public GetRequest(String url, long rangeOffset, boolean partial) {
+        checkNotNull(url);
+        this.uri = url;
+        this.rangeOffset = rangeOffset;
+        this.partial = partial;
+    }
 
+    public static GetRequest get(String url) {
+        return new GetRequest(url, 0, true);
+    }
 
     public static GetRequest read(InputStream inputStream) throws IOException {
         //从inputStream中读出来的内容如下：
