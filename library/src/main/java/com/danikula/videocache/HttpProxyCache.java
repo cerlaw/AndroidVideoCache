@@ -39,6 +39,7 @@ class HttpProxyCache extends ProxyCache {
 
     public void processRequest(GetRequest request, Socket socket) throws IOException, ProxyCacheException {
         //向播放器返回Head信息（会以流的方式，先缓存到本地再给到播放器）
+        //用客户端穿过来的socket，拿到一个OutputStream输出流，这样我们就能往里面写数据了
         OutputStream out = new BufferedOutputStream(socket.getOutputStream());
         String responseHeaders = newResponseHeaders(request);
         out.write(responseHeaders.getBytes("UTF-8"));

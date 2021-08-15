@@ -49,6 +49,24 @@ final class HttpProxyCacheServerClients {
         }
     }
 
+    /**
+     * 用于预加载方法
+     * @param request
+     * @throws ProxyCacheException
+     * @throws IOException
+     */
+    public void processRequest(GetRequest request) throws ProxyCacheException, IOException {
+        startProcessRequest();;
+        try {
+            //原子操作用于记录当前有多少个socketClient
+            clientsCount.incrementAndGet();
+            //缓存代理开始处理
+            proxyCache.processRequest(request);
+        } finally {
+            finishProcessRequest();
+        }
+    }
+
     private synchronized void startProcessRequest() throws ProxyCacheException {
         proxyCache = proxyCache == null ? newHttpProxyCache() : proxyCache;
     }

@@ -92,6 +92,7 @@ class ProxyCache {
         //如果已经还没有停止，并且 还没有缓存完 并且 没有在读取中 则开启新的数据读取线程 线程
         boolean readingInProgress = sourceReaderThread != null && sourceReaderThread.getState() != Thread.State.TERMINATED;
         if (!stopped && !cache.isCompleted() && !readingInProgress) {
+            //开启了一个线程给cache，也就是本地文件写数据，同时更新一下缓存进度
             sourceReaderThread = new Thread(new SourceReaderRunnable(), "Source reader for " + source);
             sourceReaderThread.start();
         }

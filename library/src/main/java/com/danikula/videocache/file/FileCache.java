@@ -35,6 +35,7 @@ public class FileCache implements Cache {
             File directory = file.getParentFile();
             Files.makeDir(directory);
             boolean completed = file.exists();
+            //创建了一个.download为后缀的临时文件，在文件下载完成后在complete方法中将后缀更换成.complete
             this.file = completed ? file : new File(file.getParentFile(), file.getName() + TEMP_POSTFIX);
             this.dataFile = new RandomAccessFile(this.file, completed ? "r" : "rw");
         } catch (IOException e) {

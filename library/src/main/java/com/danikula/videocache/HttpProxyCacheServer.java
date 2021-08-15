@@ -169,6 +169,24 @@ public class HttpProxyCacheServer {
         return getCacheFile(url).exists();
     }
 
+    /**
+     * 开启预加载
+     * @param url 需要预加载的url
+     */
+    public void preCached(String url) {
+        if (!isCached(url)) {
+            try {
+                GetRequest request = GetRequest.get(url);
+                LOG.debug("Request to precache proxy:" + request);
+                //获取 HttpProxyCacheServerClients ，并进行request处理
+                HttpProxyCacheServerClients clients = getClients(url);
+                clients.processRequest(request);
+            } catch (ProxyCacheException | IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     public void shutdown() {
         LOG.info("Shutdown proxy server");
 
@@ -190,6 +208,11 @@ public class HttpProxyCacheServer {
         return pinger.ping(3, 70);   // 70+140+280=max~500ms
     }
 
+    /**
+     * 拼接成一个带有127.0.0.1目标地址以及端口并携带原url的地址，这个请求就会被上面定义的localserver监听到
+     * @param url
+     * @return
+     */
     private String appendToProxyUrl(String url) {
         return String.format(Locale.US, "http://%s:%d/%s", PROXY_HOST, port, ProxyCacheUtils.encode(url));
     }
